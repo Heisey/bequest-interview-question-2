@@ -1,36 +1,38 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 
-const API_URL = "http://localhost:8080";
+import * as Hooks from './hooks'
 
 function App() {
-  const [data, setData] = useState<string>();
+  
+  const serverData = Hooks.useGetData()
+  const updateServer = Hooks.useUpdateData()
+  const verifyData = Hooks.useVerify()
+  const [updatedData, updatedDataHandler] = React.useState<string |undefined>(undefined)
+  const [loading, loadingHandler] = React.useState(false)
 
-  useEffect(() => {
-    getData();
-  }, []);
+  if (serverData.isLoading || loading) return <div>Loading</div>
 
-  const getData = async () => {
-    const response = await fetch(API_URL);
-    const { data } = await response.json();
-    setData(data);
-  };
-
-  const updateData = async () => {
-    await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({ data }),
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    });
-
-    await getData();
-  };
-
-  const verifyData = async () => {
-    throw new Error("Not implemented");
-  };
+  if (serverData.isError) return <div>{serverData.error.message}</div>
+  if (verifyData.isError) return <div>{verifyData.error.message}</div>
+  
+  const onSave = async () => {
+    try {
+      loadingHandler(true)
+      await updateServer.mutateAsync({ data: updatedData })
+      loadingHandler(false)
+    } catch(err) {
+      loadingHandler(false)
+    }
+  }
+  const onVerify = async () => {
+    try {
+      loadingHandler(true)
+      await verifyData.mutateAsync(serverData.data.signature)
+      loadingHandler(false)
+    } catch(err) {
+      loadingHandler(false)
+    }
+  }
 
   return (
     <div
@@ -51,20 +53,39 @@ function App() {
       <input
         style={{ fontSize: "30px" }}
         type="text"
-        value={data}
-        onChange={(e) => setData(e.target.value)}
+        value={updatedData || serverData.data?.data}
+        onChange={(e) => updatedDataHandler(e.target.value)}
       />
 
       <div style={{ display: "flex", gap: "10px" }}>
-        <button style={{ fontSize: "20px" }} onClick={updateData}>
+        <button style={{ fontSize: "20px" }} onClick={onSave}>
           Update Data
         </button>
-        <button style={{ fontSize: "20px" }} onClick={verifyData}>
+        <button style={{ fontSize: "20px" }} onClick={onVerify}>
           Verify Data
         </button>
+      </div>
+
+      <div style={{ gap: '10px' }}>
+        {verifyData.data ? <div>data verified</div> : <div>Data not verified</div>}
       </div>
     </div>
   );
 }
 
 export default App;
+
+
+
+// const updateData = async () => {
+//   await fetch(API_URL, {
+//     method: "POST",
+//     body: JSON.stringify({ data }),
+//     headers: {
+//       Accept: "application/json",
+//       "Content-Type": "application/json",
+//     },
+//   });
+
+//   await getData();
+// };
